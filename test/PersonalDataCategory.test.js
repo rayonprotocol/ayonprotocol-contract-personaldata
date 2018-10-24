@@ -14,7 +14,7 @@ require('chai')
 
 const contractVersion = 1;
 
-const indexes = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : size)]
+const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : size)]
   .map((_, index) => index);
 
 contract('PersonalDataCategory', function (accounts) {
@@ -187,18 +187,18 @@ contract('PersonalDataCategory', function (accounts) {
           somePersonalDataCategory.borrowerAppId,
           { from: owner },
         ),
-        personalDataCategory.add(
-          otherPersonalDataCategory.code,
-          otherPersonalDataCategory.category1,
-          otherPersonalDataCategory.category2,
-          otherPersonalDataCategory.category3,
-          otherPersonalDataCategory.borrowerAppId,
-          { from: owner },
-        ),
       ]);
+      await personalDataCategory.add(
+        otherPersonalDataCategory.code,
+        otherPersonalDataCategory.category1,
+        otherPersonalDataCategory.category2,
+        otherPersonalDataCategory.category3,
+        otherPersonalDataCategory.borrowerAppId,
+        { from: owner },
+      );
     });
 
-    it('gets personal data category with code', async function () {
+    it('gets a personal data category with code', async function () {
       const [, category1, category2, category3, borrowerAppId, updatedTime] = await personalDataCategory.get(somePersonalDataCategory.code);
       category1.should.be.equal(toByte32Hex(somePersonalDataCategory.category1));
       category2.should.be.equal(toByte32Hex(somePersonalDataCategory.category2));
@@ -207,35 +207,96 @@ contract('PersonalDataCategory', function (accounts) {
       updatedTime.should.be.withinTimeTolerance(addedTime);
     });
 
-    it('gets all personal data categories', async function () {
+    it('reverts on getting a personal data category with invalid code', async function () {
+      await personalDataCategory.get(somePersonalDataCategory.code).should.be.fulfilled;
+      await personalDataCategory.get(1000).should.be.rejectedWith(/Personal data category code is not found/);
+    });
+
+    it('gets all personal data categories with codes', async function () {
+      const codes = await personalDataCategory.getCodeList();
+      codes.length.should.equal(2);
+
+      const categories = await Promise.all(codes.map(code => personalDataCategory.get(code)));
+
+      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+
+      categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        const expectedCategory = expectedCategories[i];
+        category1.should.be.equal(toByte32Hex(expectedCategory.category1));
+        category2.should.be.equal(toByte32Hex(expectedCategory.category2));
+        category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+        borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+      });
+    });
+
+    it('gets all personal data categories by code list index', async function () {
       const size = await personalDataCategory.size();
       size.should.be.bignumber.equal(2);
 
       const categories = await Promise.all(
-        [...Array(size.toNumber())].map((_, index) => personalDataCategory.getByIndex(index))
+        range(size).map(index => personalDataCategory.getByIndex(index))
       );
 
-      const categoryCodes = categories.map(([code]) => code.toNumber());
-      categoryCodes.should.include.bignumber.members([
-        somePersonalDataCategory.code.toNumber(),
-        otherPersonalDataCategory.code.toNumber(),
-      ]);
+      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+
+      categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        const expectedCategory = expectedCategories[i];
+        category1.should.be.equal(toByte32Hex(expectedCategory.category1));
+        category2.should.be.equal(toByte32Hex(expectedCategory.category2));
+        category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+        borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+      });
+    });
+
+    it('reverts on getting a personal data category by invalid index', async function () {
+      await personalDataCategory.getByIndex(1).should.be.fulfilled;
+      await personalDataCategory.getByIndex(2).should.be.rejectedWith(/Index is out of range of personal data category list/);
+    });
+
+    it('gets all personal data categories for borrower app with codes', async function () {
+      const borrowerAppCodes = await personalDataCategory.getBorrowerAppCodeList(somePersonalDataCategory.borrowerAppId);
+      borrowerAppCodes.length.should.equal(1);
+      const categories = await Promise.all(borrowerAppCodes.map(code => personalDataCategory.get(code)));
+
+      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+
+      categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        const expectedCategory = expectedCategories[i];
+        category1.should.be.equal(toByte32Hex(expectedCategory.category1));
+        category2.should.be.equal(toByte32Hex(expectedCategory.category2));
+        category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+        borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+      });
     });
 
     it('gets all personal data categories for borrower app', async function () {
       const someBorrowerAppCodeListSize = await personalDataCategory.getborrowerAppCodeListSize(somePersonalDataCategory.borrowerAppId);
       someBorrowerAppCodeListSize.should.be.bignumber.equal(1);
 
-      const [category] = await Promise.all(
-        indexes(someBorrowerAppCodeListSize).map(index => personalDataCategory.getByBorrowerCodeListIndex(somePersonalDataCategory.borrowerAppId, index))
+      const categories = await Promise.all(
+        range(someBorrowerAppCodeListSize).map(index =>
+          personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, index)
+        )
       );
 
-      const [, category1, category2, category3, borrowerAppId, updatedTime] = category;
-      category1.should.be.equal(toByte32Hex(somePersonalDataCategory.category1));
-      category2.should.be.equal(toByte32Hex(somePersonalDataCategory.category2));
-      category3.should.be.equal(toByte32Hex(somePersonalDataCategory.category3));
-      borrowerAppId.should.be.equal(somePersonalDataCategory.borrowerAppId);
-      updatedTime.should.be.withinTimeTolerance(addedTime);
+      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+
+      categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        const expectedCategory = expectedCategories[i];
+        category1.should.be.equal(toByte32Hex(expectedCategory.category1));
+        category2.should.be.equal(toByte32Hex(expectedCategory.category2));
+        category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+        borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+      });
+    });
+
+    it('reverts on getting a personal data category for borrower app by invalid index', async function () {
+      await personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, 0)
+        .should.be.fulfilled;
+      await personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, 1)
+        .should.be.rejectedWith(/Index is out of range of borrower app code list/);
     });
   });
 });
+
+

@@ -4,7 +4,7 @@ import "../../rayonprotocol-contract-common/contracts/RayonBase.sol";
 
 contract PersonalDataCategory is RayonBase {
     struct PersonalDataCategoryEntry {
-        uint256 code; // category code is unique index
+        uint256 code; // category code is unique
         bytes32 category1;
         bytes32 category2;
         bytes32 category3;
@@ -14,7 +14,7 @@ contract PersonalDataCategory is RayonBase {
         uint256 index;
     }
 
-    // PersonalDataCategoryEntry indexes
+    // list of PersonalDataCategoryEntry code
     uint256[] public codeList;
 
     mapping (uint256 => PersonalDataCategoryEntry) categoryMap;
@@ -69,27 +69,35 @@ contract PersonalDataCategory is RayonBase {
     }
 
     function getByIndex(uint256 _index) public view returns (uint256, bytes32, bytes32, bytes32, address, uint256) {
-        require(_isInRange(_index), "Index is out of range of Personal data category list");
+        require(_isInRange(_index), "Index is out of range of personal data category list");
         uint256 code = codeList[_index];
         
         return get(code);
     }
 
-    function getByBorrowerCodeListIndex(address _borrowerAppId, uint256 _index) public view
+    function getCodeList() public view returns(uint256[]) {
+        return codeList;
+    }
+
+    function size() public view returns (uint256) {
+        return codeList.length;
+    }
+
+    function getByBorrowerAppCodeListIndex(address _borrowerAppId, uint256 _index) public view
     returns (uint256, bytes32, bytes32, bytes32, address, uint256) {
         require(_isInRangeOfBorrowerAppCodeList(_borrowerAppId, _index), "Index is out of range of borrower app code list");
         uint256 code = borrowerAppIdToCodeListMap[_borrowerAppId][_index];
         return get(code);
     }
 
+    function getBorrowerAppCodeList(address _borrowerAppId) public view returns (uint256[]) {
+        return borrowerAppIdToCodeListMap[_borrowerAppId];
+    }
+
     function getborrowerAppCodeListSize(address _borrowerAppId) public view returns (uint256) {
         return borrowerAppIdToCodeListMap[_borrowerAppId].length;
     }
-
-
-    function size() public view returns (uint) {
-        return codeList.length;
-    }
+    
 
     function contains(uint256 _code) public returns (bool) {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
