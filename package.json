@@ -7,16 +7,16 @@
   "license": "MIT",
   "scripts": {
     "test": "TRUFFLE_TEST=true ./ganache-cli.sh",
-    "test:watch": "npm-watch"
+    "test:watch": "nodemon --exec npm run test"
   },
-  "watch": {
-    "test": {
-      "patterns": ["contracts", "test"],
-      "extensions": "js,sol",
-      "legacyWatch": true,
-      "quiet": false,
-      "delay": 3000
-    }
+  "nodemonConfig": {
+    "watch": [
+      "contracts/",
+      "test/"
+    ],
+    "verbose": true,
+    "ext": "js,sol",
+    "delay": "3000"
   },
   "devDependencies": {
     "babel-polyfill": "^6.26.0",
@@ -31,7 +31,7 @@
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
-    "npm-watch": "^0.4.0",
+    "nodemon": "^1.18.4",
     "truffle": "^4.1.14",
     "truffle-hdwallet-provider": "^0.0.6"
   },
