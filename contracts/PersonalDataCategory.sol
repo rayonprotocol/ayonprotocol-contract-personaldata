@@ -1,8 +1,10 @@
 pragma solidity ^0.4.23;
 
 import "../../rayonprotocol-contract-common/contracts/RayonBase.sol";
+import "../../rayonprotocol-contract-borrower/contracts/contractReference/UsesBorrowerApp.sol";
+import "../../rayonprotocol-contract-borrower/contracts/BorrowerApp.sol";
 
-contract PersonalDataCategory is RayonBase {
+contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     struct PersonalDataCategoryEntry {
         uint256 code; // category code is unique
         bytes32 category1;
@@ -28,10 +30,14 @@ contract PersonalDataCategory is RayonBase {
     // constructor
     constructor(uint16 version) RayonBase("PersonalDataCategory", version) public {}
 
-    function add(uint256 _code, bytes32 _category1, bytes32 _category2, bytes32 _category3, address _borrowerAppId) public onlyOwner {
+    function add(uint256 _code, bytes32 _category1, bytes32 _category2, bytes32 _category3, address _borrowerAppId) public whenBorrowerAppContractIsSet onlyOwner {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         // uniqe constraint
-        require(!_contains(entry), "Personal data category code is already exists");
+        require(!_contains(entry), "Personal data category code already exists");
+        require(
+            BorrowerApp(borrowerAppContractAddress).contains(_borrowerAppId),
+            "Borrower app is not found"
+        );
         bytes32  compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
         require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition is already exists");
 

@@ -4,6 +4,7 @@ import assertWithinTimeTolerance from './helpers/assertWithinTimeTolerance';
 import toByte32Hex from './helpers/toByte32Hex';
 
 const PersonalDataCategory = artifacts.require('./PersonalDataCategory.sol');
+const BorrowerApp = artifacts.require('./BorrowerAppMock.sol');
 const BigNumber = web3.BigNumber;
 
 require('chai')
@@ -23,9 +24,9 @@ contract('PersonalDataCategory', function (accounts) {
     nonOwner, owner,
   ] = accounts;
 
-  let personalDataCategory;
+  let personalDataCategory, borrowerApp;
 
-  const somePersonalDataCategory = {
+  const somePDC = {
     code: new BigNumber(200),
     category1: 'thing',
     category2: 'electronics',
@@ -33,7 +34,7 @@ contract('PersonalDataCategory', function (accounts) {
     borrowerAppId: someBorrowerApp,
   };
 
-  const otherPersonalDataCategory = {
+  const otherPDC = {
     code: new BigNumber(300),
     category1: 'things',
     category2: 'transporter',
@@ -41,85 +42,119 @@ contract('PersonalDataCategory', function (accounts) {
     borrowerAppId: otherBorrowerApp,
   };
 
+  const mockSomeBorrowerAppExistence = () => borrowerApp.mockSetContainingId(somePDC.borrowerAppId);
+  const mockOtherBorrowerAppExistence = () => borrowerApp.mockSetContainingId(otherPDC.borrowerAppId);
+
   beforeEach(async function () {
-    personalDataCategory = await PersonalDataCategory.new(contractVersion, { from: owner });
+    [personalDataCategory, borrowerApp] = await Promise.all([
+      PersonalDataCategory.new(contractVersion, { from: owner }),
+      BorrowerApp.new(contractVersion, { from: owner }),
+    ]);
   });
 
   describe('Register', async function () {
-    it('add a perosnal data category', async function () {
-      const { code, category1, category2, category3, borrowerAppId } = somePersonalDataCategory;
-      await personalDataCategory.add(
-        code, category1, category2, category3, borrowerAppId,
-        { from: owner }
-      ).should.be.fulfilled;
-    });
-
-    it('emits an event on adding an perosnal data category', async function () {
-      const { code, category1, category2, category3, borrowerAppId } = somePersonalDataCategory;
-      const events = await eventsIn(personalDataCategory.add(
-        code, category1, category2, category3, borrowerAppId,
-        { from: owner }
-      ));
-
-      events.should.deep.include({
-        name: 'LogPersonalDataCategoryAdded',
-        args: { code, borrowerAppId },
+    context('when BorrowerApp is set', function () {
+      beforeEach(async function () {
+        await personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner });
       });
-    });
 
-    it('reverts on adding a perosnal data category by non owner', async function () {
-      const { code, category1, category2, category3, borrowerAppId } = somePersonalDataCategory;
-      await personalDataCategory.add(
-        code, category1, category2, category3, borrowerAppId,
-        { from: nonOwner }
-      ).should.be.rejectedWith(/revert/);
-    });
+      it('add a perosnal data category', async function () {
+        await mockSomeBorrowerAppExistence();
 
-    it('reverts on adding a perosnal data category with duplicated code', async function () {
-      await personalDataCategory.add(
-        somePersonalDataCategory.code,
-        somePersonalDataCategory.category1,
-        somePersonalDataCategory.category2,
-        somePersonalDataCategory.category3,
-        somePersonalDataCategory.borrowerAppId,
-        { from: owner }
-      );
+        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        await personalDataCategory.add(
+          code, category1, category2, category3, borrowerAppId,
+          { from: owner }
+        ).should.be.fulfilled;
+      });
 
-      await personalDataCategory.add(
-        somePersonalDataCategory.code,
-        otherPersonalDataCategory.category1,
-        otherPersonalDataCategory.category2,
-        otherPersonalDataCategory.category3,
-        somePersonalDataCategory.borrowerAppId,
-        { from: owner }
-      ).should.be.rejectedWith(/Personal data category code is already exists/);
-    });
+      it('emits an event on adding an perosnal data category', async function () {
+        await mockSomeBorrowerAppExistence();
+        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const events = await eventsIn(personalDataCategory.add(
+          code, category1, category2, category3, borrowerAppId,
+          { from: owner }
+        ));
 
-    it('reverts on adding a perosnal data category with duplicated composition', async function () {
-      await personalDataCategory.add(
-        somePersonalDataCategory.code,
-        somePersonalDataCategory.category1,
-        somePersonalDataCategory.category2,
-        somePersonalDataCategory.category3,
-        somePersonalDataCategory.borrowerAppId,
-        { from: owner }
-      );
+        events.should.deep.include({
+          name: 'LogPersonalDataCategoryAdded',
+          args: { code, borrowerAppId },
+        });
+      });
 
-      await personalDataCategory.add(
-        otherPersonalDataCategory.code,
-        somePersonalDataCategory.category1,
-        somePersonalDataCategory.category2,
-        somePersonalDataCategory.category3,
-        somePersonalDataCategory.borrowerAppId,
-        { from: owner },
-      ).should.be.rejectedWith(/Personal data category composition is already exists/);
+      it('reverts on adding a perosnal data category by non owner', async function () {
+        await mockSomeBorrowerAppExistence();
+
+        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        await personalDataCategory.add(
+          code, category1, category2, category3, borrowerAppId,
+          { from: nonOwner }
+        ).should.be.rejectedWith(/revert/);
+      });
+
+      it('reverts on adding a perosnal data category with unregistered borrower app', async function () {
+        const { code, category1, category2, category3 } = somePDC;
+        await personalDataCategory.add(
+          code, category1, category2, category3, nonOwner,
+          { from: owner }
+        ).should.be.rejectedWith(/Borrower app is not found/);
+      });
+
+      it('reverts on adding a perosnal data category with duplicated code', async function () {
+        await mockSomeBorrowerAppExistence();
+
+        await personalDataCategory.add(
+          somePDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          { from: owner }
+        );
+
+        await personalDataCategory.add(
+          somePDC.code,
+          otherPDC.category1,
+          otherPDC.category2,
+          otherPDC.category3,
+          somePDC.borrowerAppId,
+          { from: owner }
+        ).should.be.rejectedWith(/Personal data category code already exists/);
+      });
+
+      it('reverts on adding a perosnal data category with duplicated composition', async function () {
+        await mockSomeBorrowerAppExistence();
+
+        await personalDataCategory.add(
+          somePDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          { from: owner }
+        );
+
+        await personalDataCategory.add(
+          otherPDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          { from: owner },
+        ).should.be.rejectedWith(/Personal data category composition is already exists/);
+      });
     });
   });
 
   describe('Modification', async function () {
     beforeEach(async function () {
+      await Promise.all([
+        personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
+        mockSomeBorrowerAppExistence(),
+      ]);
+
       // Register some personal data category
-      const { code, category1, category2, category3, borrowerAppId } = somePersonalDataCategory;
+      const { code, category1, category2, category3, borrowerAppId } = somePDC;
       await personalDataCategory.add(
         code, category1, category2, category3, borrowerAppId,
         { from: owner },
@@ -127,7 +162,7 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('updates the category composition', async function () {
-      const { code, category1, category2 } = somePersonalDataCategory;
+      const { code, category1, category2 } = somePDC;
       const newCategory3 = 'cellphone';
       await personalDataCategory.update(
         code, category1, category2, newCategory3,
@@ -136,7 +171,7 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('emit an event on updating the category composition', async function () {
-      const { code, category1, category2 } = somePersonalDataCategory;
+      const { code, category1, category2 } = somePDC;
       const newCategory3 = 'cellphone';
       const events = await eventsIn(personalDataCategory.update(
         code, category1, category2, newCategory3,
@@ -155,7 +190,7 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('reverts on updating duplicated category composition', async function () {
-      const { code, category1, category2, category3 } = somePersonalDataCategory;
+      const { code, category1, category2, category3 } = somePDC;
       await personalDataCategory.update(
         code, category1, category2, category3,
         { from: owner }
@@ -163,7 +198,7 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('reverts on updating the category composition by non owner', async function () {
-      const { code, category1, category2 } = somePersonalDataCategory;
+      const { code, category1, category2 } = somePDC;
       const newCategory3 = 'cellphone';
       await personalDataCategory.update(
         code, category1, category2, newCategory3,
@@ -176,39 +211,45 @@ contract('PersonalDataCategory', function (accounts) {
     let addedTime;
 
     beforeEach(async function () {
+      await Promise.all([
+        personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
+        mockSomeBorrowerAppExistence(),
+        mockOtherBorrowerAppExistence(),
+      ]);
+
       // Register personal data categories
       [addedTime] = await Promise.all([
         latestTime(),
         personalDataCategory.add(
-          somePersonalDataCategory.code,
-          somePersonalDataCategory.category1,
-          somePersonalDataCategory.category2,
-          somePersonalDataCategory.category3,
-          somePersonalDataCategory.borrowerAppId,
+          somePDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
           { from: owner },
         ),
       ]);
       await personalDataCategory.add(
-        otherPersonalDataCategory.code,
-        otherPersonalDataCategory.category1,
-        otherPersonalDataCategory.category2,
-        otherPersonalDataCategory.category3,
-        otherPersonalDataCategory.borrowerAppId,
+        otherPDC.code,
+        otherPDC.category1,
+        otherPDC.category2,
+        otherPDC.category3,
+        otherPDC.borrowerAppId,
         { from: owner },
       );
     });
 
     it('gets a personal data category with code', async function () {
-      const [, category1, category2, category3, borrowerAppId, updatedTime] = await personalDataCategory.get(somePersonalDataCategory.code);
-      category1.should.be.equal(toByte32Hex(somePersonalDataCategory.category1));
-      category2.should.be.equal(toByte32Hex(somePersonalDataCategory.category2));
-      category3.should.be.equal(toByte32Hex(somePersonalDataCategory.category3));
-      borrowerAppId.should.be.equal(somePersonalDataCategory.borrowerAppId);
+      const [, category1, category2, category3, borrowerAppId, updatedTime] = await personalDataCategory.get(somePDC.code);
+      category1.should.be.equal(toByte32Hex(somePDC.category1));
+      category2.should.be.equal(toByte32Hex(somePDC.category2));
+      category3.should.be.equal(toByte32Hex(somePDC.category3));
+      borrowerAppId.should.be.equal(somePDC.borrowerAppId);
       updatedTime.should.be.withinTimeTolerance(addedTime);
     });
 
     it('reverts on getting a personal data category with invalid code', async function () {
-      await personalDataCategory.get(somePersonalDataCategory.code).should.be.fulfilled;
+      await personalDataCategory.get(somePDC.code).should.be.fulfilled;
       await personalDataCategory.get(1000).should.be.rejectedWith(/Personal data category code is not found/);
     });
 
@@ -218,7 +259,7 @@ contract('PersonalDataCategory', function (accounts) {
 
       const categories = await Promise.all(codes.map(code => personalDataCategory.get(code)));
 
-      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+      const expectedCategories = [somePDC, otherPDC];
 
       categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
         const expectedCategory = expectedCategories[i];
@@ -237,7 +278,7 @@ contract('PersonalDataCategory', function (accounts) {
         range(size).map(index => personalDataCategory.getByIndex(index))
       );
 
-      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+      const expectedCategories = [somePDC, otherPDC];
 
       categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
         const expectedCategory = expectedCategories[i];
@@ -254,11 +295,11 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('gets all personal data categories for borrower app with codes', async function () {
-      const borrowerAppCodes = await personalDataCategory.getBorrowerAppCodeList(somePersonalDataCategory.borrowerAppId);
+      const borrowerAppCodes = await personalDataCategory.getBorrowerAppCodeList(somePDC.borrowerAppId);
       borrowerAppCodes.length.should.equal(1);
       const categories = await Promise.all(borrowerAppCodes.map(code => personalDataCategory.get(code)));
 
-      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+      const expectedCategories = [somePDC, otherPDC];
 
       categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
         const expectedCategory = expectedCategories[i];
@@ -270,16 +311,16 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('gets all personal data categories for borrower app', async function () {
-      const someBorrowerAppCodeListSize = await personalDataCategory.getborrowerAppCodeListSize(somePersonalDataCategory.borrowerAppId);
+      const someBorrowerAppCodeListSize = await personalDataCategory.getborrowerAppCodeListSize(somePDC.borrowerAppId);
       someBorrowerAppCodeListSize.should.be.bignumber.equal(1);
 
       const categories = await Promise.all(
         range(someBorrowerAppCodeListSize).map(index =>
-          personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, index)
+          personalDataCategory.getByBorrowerAppCodeListIndex(somePDC.borrowerAppId, index)
         )
       );
 
-      const expectedCategories = [somePersonalDataCategory, otherPersonalDataCategory];
+      const expectedCategories = [somePDC, otherPDC];
 
       categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
         const expectedCategory = expectedCategories[i];
@@ -291,9 +332,9 @@ contract('PersonalDataCategory', function (accounts) {
     });
 
     it('reverts on getting a personal data category for borrower app by invalid index', async function () {
-      await personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, 0)
+      await personalDataCategory.getByBorrowerAppCodeListIndex(somePDC.borrowerAppId, 0)
         .should.be.fulfilled;
-      await personalDataCategory.getByBorrowerAppCodeListIndex(somePersonalDataCategory.borrowerAppId, 1)
+      await personalDataCategory.getByBorrowerAppCodeListIndex(somePDC.borrowerAppId, 1)
         .should.be.rejectedWith(/Index is out of range of borrower app code list/);
     });
   });
