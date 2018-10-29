@@ -141,7 +141,7 @@ contract('PersonalDataCategory', function (accounts) {
           somePDC.category3,
           somePDC.borrowerAppId,
           { from: owner },
-        ).should.be.rejectedWith(/Personal data category composition is already exists/);
+        ).should.be.rejectedWith(/Personal data category composition already exists/);
       });
     });
 
@@ -177,10 +177,16 @@ contract('PersonalDataCategory', function (accounts) {
       });
 
       it('updates the category composition', async function () {
-        const { code, category1, category2 } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId } = somePDC;
         const newCategory3 = 'cellphone';
         await personalDataCategory.update(
           code, category1, category2, newCategory3,
+          { from: owner }
+        ).should.be.fulfilled;
+
+        // use old category composition
+        await personalDataCategory.add(
+          code.add(1), category1, category2, category3, borrowerAppId,
           { from: owner }
         ).should.be.fulfilled;
       });
@@ -209,7 +215,7 @@ contract('PersonalDataCategory', function (accounts) {
         await personalDataCategory.update(
           code, category1, category2, category3,
           { from: owner }
-        ).should.be.rejectedWith(/Personal data category composition to update is already exists/);
+        ).should.be.rejectedWith(/Personal data category composition to update already exists/);
       });
 
       it('reverts on updating the category composition by non owner', async function () {

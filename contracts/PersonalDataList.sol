@@ -47,7 +47,7 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         require(PersonalDataCategory(personalDataCategoryContractAddress).contains(_categoryCode), "Personal data category code is not found");
         
         bytes32 key = keccak256(abi.encodePacked(_borrowerId, _categoryCode));
-        require(!_contains(key), "Personal data for both borrower and category code is already exists");
+        require(!_contains(key), "Personal data for both borrower and category code already exists");
         PersonalDataEntry storage entry = entryMap[key];
         
         entry.borrowerId = _borrowerId;

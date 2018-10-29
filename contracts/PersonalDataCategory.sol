@@ -39,7 +39,7 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
             "Borrower app is not found"
         );
         bytes32  compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
-        require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition is already exists");
+        require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition already exists");
 
         compoisiteCategoryToAddedMap[compoisiteCategory] = true;
         entry.code = _code;
@@ -56,11 +56,13 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     function update(uint256 _code, bytes32 _category1, bytes32 _category2, bytes32 _category3) public onlyOwner {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         require(_contains(entry), "Personal data category code is not found");
-        
-        bytes32  compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
-        require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition to update is already exists");
 
-        compoisiteCategoryToAddedMap[compoisiteCategory] = true;
+        bytes32 newCompoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
+        require(!compoisiteCategoryToAddedMap[newCompoisiteCategory], "Personal data category composition to update already exists");
+
+        bytes32 oldCompoisiteCategory = keccak256(abi.encodePacked(entry.category1, entry.category2, entry.category3));
+        compoisiteCategoryToAddedMap[oldCompoisiteCategory] = false;
+        compoisiteCategoryToAddedMap[newCompoisiteCategory] = true;
         if (entry.category1 != _category1) entry.category1 = _category1;
         if (entry.category2 != _category2) entry.category2 = _category2;
         if (entry.category3 != _category3) entry.category3 = _category3;
