@@ -1,7 +1,6 @@
 import { latestTime } from 'openzeppelin-solidity/test/helpers/latestTime';
 import eventsIn from './helpers/eventsIn';
 import assertWithinTimeTolerance from './helpers/assertWithinTimeTolerance';
-import toByte32Hex from './helpers/toByte32Hex';
 
 const PersonalDataCategory = artifacts.require('./PersonalDataCategory.sol');
 const BorrowerApp = artifacts.require('./BorrowerAppMock.sol');
@@ -191,6 +190,21 @@ contract('PersonalDataCategory', function (accounts) {
         ).should.be.fulfilled;
       });
 
+      it('uses the old composite category after updates', async function () {
+        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const newCategory3 = 'cellphone';
+        await personalDataCategory.update(
+          code, category1, category2, newCategory3,
+          { from: owner }
+        );
+
+        // now old category composition is available
+        await personalDataCategory.add(
+          code.add(1), category1, category2, category3, borrowerAppId,
+          { from: owner }
+        ).should.be.fulfilled;
+      });
+
       it('emit an event on updating the category composition', async function () {
         const { code, category1, category2 } = somePDC;
         const newCategory3 = 'cellphone';
@@ -203,9 +217,9 @@ contract('PersonalDataCategory', function (accounts) {
           name: 'LogPersonalDataCategoryUpdated',
           args: {
             code,
-            category1: toByte32Hex(category1),
-            category2: toByte32Hex(category2),
-            category3: toByte32Hex(newCategory3),
+            category1: (category1),
+            category2: (category2),
+            category3: (newCategory3),
           },
         });
       });
@@ -273,9 +287,9 @@ contract('PersonalDataCategory', function (accounts) {
 
       it('gets a personal data category with code', async function () {
         const [, category1, category2, category3, borrowerAppId, updatedTime] = await personalDataCategory.get(somePDC.code);
-        category1.should.be.equal(toByte32Hex(somePDC.category1));
-        category2.should.be.equal(toByte32Hex(somePDC.category2));
-        category3.should.be.equal(toByte32Hex(somePDC.category3));
+        category1.should.be.equal(somePDC.category1);
+        category2.should.be.equal(somePDC.category2);
+        category3.should.be.equal(somePDC.category3);
         borrowerAppId.should.be.equal(somePDC.borrowerAppId);
         updatedTime.should.be.withinTimeTolerance(addedTime);
       });
@@ -290,9 +304,9 @@ contract('PersonalDataCategory', function (accounts) {
 
         categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
           const expectedCategory = expectedCategories[i];
-          category1.should.be.equal(toByte32Hex(expectedCategory.category1));
-          category2.should.be.equal(toByte32Hex(expectedCategory.category2));
-          category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+          category1.should.be.equal(expectedCategory.category1);
+          category2.should.be.equal(expectedCategory.category2);
+          category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
         });
       });
@@ -309,9 +323,9 @@ contract('PersonalDataCategory', function (accounts) {
 
         categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
           const expectedCategory = expectedCategories[i];
-          category1.should.be.equal(toByte32Hex(expectedCategory.category1));
-          category2.should.be.equal(toByte32Hex(expectedCategory.category2));
-          category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+          category1.should.be.equal(expectedCategory.category1);
+          category2.should.be.equal(expectedCategory.category2);
+          category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
         });
       });
@@ -330,9 +344,9 @@ contract('PersonalDataCategory', function (accounts) {
 
         categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
           const expectedCategory = expectedCategories[i];
-          category1.should.be.equal(toByte32Hex(expectedCategory.category1));
-          category2.should.be.equal(toByte32Hex(expectedCategory.category2));
-          category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+          category1.should.be.equal(expectedCategory.category1);
+          category2.should.be.equal(expectedCategory.category2);
+          category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
         });
       });
@@ -351,9 +365,9 @@ contract('PersonalDataCategory', function (accounts) {
 
         categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
           const expectedCategory = expectedCategories[i];
-          category1.should.be.equal(toByte32Hex(expectedCategory.category1));
-          category2.should.be.equal(toByte32Hex(expectedCategory.category2));
-          category3.should.be.equal(toByte32Hex(expectedCategory.category3));
+          category1.should.be.equal(expectedCategory.category1);
+          category2.should.be.equal(expectedCategory.category2);
+          category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
         });
       });

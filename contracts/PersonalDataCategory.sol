@@ -7,9 +7,9 @@ import "../../rayonprotocol-contract-borrower/contracts/BorrowerApp.sol";
 contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     struct PersonalDataCategoryEntry {
         uint256 code; // category code is unique
-        bytes32 category1;
-        bytes32 category2;
-        bytes32 category3;
+        string category1;
+        string category2;
+        string category3;
         address borrowerAppId;
         uint256 borrowerAppIdToCodeIndex;
         uint256 updatedTime;
@@ -25,12 +25,12 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     mapping (bytes32 => bool) internal compoisiteCategoryToAddedMap;
     
     event LogPersonalDataCategoryAdded(uint256 indexed code, address indexed borrowerAppId);
-    event LogPersonalDataCategoryUpdated(uint256 indexed code, bytes32 category1, bytes32 category2, bytes32 category3);
+    event LogPersonalDataCategoryUpdated(uint256 indexed code, string category1, string category2, string category3);
 
     // constructor
     constructor(uint16 version) RayonBase("PersonalDataCategory", version) public {}
 
-    function add(uint256 _code, bytes32 _category1, bytes32 _category2, bytes32 _category3, address _borrowerAppId) public whenBorrowerAppContractIsSet onlyOwner {
+    function add(uint256 _code, string _category1, string _category2, string _category3, address _borrowerAppId) public whenBorrowerAppContractIsSet onlyOwner {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         // uniqe constraint
         require(!_contains(entry), "Personal data category code already exists");
@@ -38,7 +38,7 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
             BorrowerApp(borrowerAppContractAddress).contains(_borrowerAppId),
             "Borrower app is not found"
         );
-        bytes32  compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
+        bytes32 compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
         require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition already exists");
 
         compoisiteCategoryToAddedMap[compoisiteCategory] = true;
@@ -53,7 +53,7 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
         emit LogPersonalDataCategoryAdded(_code, _borrowerAppId);
     }
 
-    function update(uint256 _code, bytes32 _category1, bytes32 _category2, bytes32 _category3) public onlyOwner {
+    function update(uint256 _code, string _category1, string _category2, string _category3) public onlyOwner {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         require(_contains(entry), "Personal data category code is not found");
 
@@ -63,20 +63,20 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
         bytes32 oldCompoisiteCategory = keccak256(abi.encodePacked(entry.category1, entry.category2, entry.category3));
         compoisiteCategoryToAddedMap[oldCompoisiteCategory] = false;
         compoisiteCategoryToAddedMap[newCompoisiteCategory] = true;
-        if (entry.category1 != _category1) entry.category1 = _category1;
-        if (entry.category2 != _category2) entry.category2 = _category2;
-        if (entry.category3 != _category3) entry.category3 = _category3;
+        if (keccak256(abi.encodePacked(entry.category1)) != keccak256(abi.encodePacked(_category1))) entry.category1 = _category1;
+        if (keccak256(abi.encodePacked(entry.category2)) != keccak256(abi.encodePacked(_category2))) entry.category2 = _category2;
+        if (keccak256(abi.encodePacked(entry.category3)) != keccak256(abi.encodePacked(_category3))) entry.category3 = _category3;
         entry.updatedTime = block.timestamp;
         emit LogPersonalDataCategoryUpdated(_code, _category1, _category2, _category3);
     }
 
-    function get(uint256 _code) public view returns (uint256, bytes32, bytes32, bytes32, address, uint256) {
+    function get(uint256 _code) public view returns (uint256, string, string, string, address, uint256) {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         require(_contains(entry), "Personal data category code is not found");
         return (entry.code, entry.category1, entry.category2, entry.category3, entry.borrowerAppId,  entry.updatedTime);
     }
 
-    function getByIndex(uint256 _index) public view returns (uint256, bytes32, bytes32, bytes32, address, uint256) {
+    function getByIndex(uint256 _index) public view returns (uint256, string, string, string, address, uint256) {
         require(_isInRange(_index), "Index is out of range of personal data category list");
         uint256 code = codeList[_index];
         
@@ -92,7 +92,7 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     }
 
     function getByBorrowerAppCodeListIndex(address _borrowerAppId, uint256 _index) public view
-    returns (uint256, bytes32, bytes32, bytes32, address, uint256) {
+    returns (uint256, string, string, string, address, uint256) {
         require(_isInRangeOfBorrowerAppCodeList(_borrowerAppId, _index), "Index is out of range of borrower app code list");
         uint256 code = borrowerAppIdToCodeListMap[_borrowerAppId][_index];
         return get(code);
