@@ -94,7 +94,7 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
     }
 
     function getByBorrowerDataListIndex(address _borrowerId, uint256 _index) public view returns (uint256, bytes32, uint256) {
-        bytes32[] borrowerDataKeyList = borrowerToKeyListMap[_borrowerId];
+        bytes32[] storage borrowerDataKeyList = borrowerToKeyListMap[_borrowerId];
         require(
             borrowerDataKeyList.length > 0 && _contains(borrowerDataKeyList[_index]),
             "Personal data for both borrower and index is not found"
@@ -109,7 +109,7 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
     }
 
     function getByCategoryDataListIndex (uint256 _categoryCode, uint256 _index) public view returns (address, bytes32, uint256) {
-        bytes32[] categoryDataKeyList = categoryCodeToKeyListMap[_categoryCode];
+        bytes32[] storage categoryDataKeyList = categoryCodeToKeyListMap[_categoryCode];
         require(
             categoryDataKeyList.length > 0 && _contains(categoryDataKeyList[_index]),
             "Personal data for both category code and index is not found"
@@ -139,14 +139,14 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         keyList[entry.keyListIndex] = lastKeyOfList;
         keyList.length--;
 
-        bytes32[] categoryDataKeyList = categoryCodeToKeyListMap[_categoryCode];
+        bytes32[] storage categoryDataKeyList = categoryCodeToKeyListMap[_categoryCode];
         bytes32 lastKeyOfCategoryDataList = categoryDataKeyList[categoryDataKeyList.length - 1];
         categoryDataKeyList[entry.categoryCodeToKeyListIndex] = lastKeyOfCategoryDataList;
         entryMap[lastKeyOfList].categoryCodeToKeyListIndex = entry.categoryCodeToKeyListIndex;
         categoryDataKeyList.length--;
 
 
-        bytes32[] borrowerDataKeyList = borrowerToKeyListMap[_borrowerId];
+        bytes32[] storage borrowerDataKeyList = borrowerToKeyListMap[_borrowerId];
         bytes32 lastKeyOfBorrowerDataList = borrowerDataKeyList[borrowerDataKeyList.length - 1];
         borrowerDataKeyList[entry.borrowerToKeyListIndex] = lastKeyOfBorrowerDataList;
         entryMap[lastKeyOfList].borrowerToKeyListIndex = entry.borrowerToKeyListIndex;

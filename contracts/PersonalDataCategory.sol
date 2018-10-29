@@ -105,12 +105,12 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     }
     
 
-    function contains(uint256 _code) public returns (bool) {
+    function contains(uint256 _code) public view returns (bool) {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         return _contains(entry);
     }
 
-    function _contains(PersonalDataCategoryEntry entry) private returns (bool) {
+    function _contains(PersonalDataCategoryEntry entry) private pure returns (bool) {
         return entry.borrowerAppId != address(0);
     }
 

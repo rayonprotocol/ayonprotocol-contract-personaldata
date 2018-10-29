@@ -7,7 +7,7 @@ import "../../../rayonprotocol-contract-borrower/contracts/Borrower.sol";
  * @dev Mocking contract of BorrowerMock
  */
 contract BorrowerMock is Borrower {
-    constructor(uint16 version) Borrower(version) {}
+    constructor(uint16 version) Borrower(version) public {}
 
     function mockSetContainingId(address _containingId) public {
         BorrowerEntry storage entry = borrowerMap[_containingId];

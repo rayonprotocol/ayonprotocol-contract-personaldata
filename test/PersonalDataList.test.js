@@ -3,10 +3,10 @@ import eventsIn from './helpers/eventsIn';
 import assertWithinTimeTolerance from './helpers/assertWithinTimeTolerance';
 import toByte32Hex from './helpers/toByte32Hex';
 
-const PersonalDataList = artifacts.require('./PersonalDataList.sol');
-const PersonalDataCategory = artifacts.require('./PersonalDataCategory.sol');
-const BorrowerApp = artifacts.require('./BorrowerAppMock.sol');
-const Borrower = artifacts.require('./BorrowerMock.sol');
+const PersonalDataList = artifacts.require('PersonalDataList.sol');
+const PersonalDataCategory = artifacts.require('PersonalDataCategory.sol');
+const BorrowerApp = artifacts.require('BorrowerAppMock.sol');
+const Borrower = artifacts.require('BorrowerMock.sol');
 const BigNumber = web3.BigNumber;
 
 require('chai')
@@ -68,6 +68,7 @@ contract('PersonalDataList', function (accounts) {
       BorrowerApp.new(contractVersion, { from: owner }),
       Borrower.new(contractVersion, { from: owner }),
     ]);
+    await personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner });
   });
 
   describe('Register', async function () {
@@ -125,8 +126,6 @@ contract('PersonalDataList', function (accounts) {
       });
 
       it('reverts on adding a personal data by unregistered borrower app', async function () {
-        await mockBorrowerExistence();
-        await registerSomePDC();
 
         await personalDataList.add(
           borrowerId,
@@ -212,9 +211,12 @@ contract('PersonalDataList', function (accounts) {
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
-          registerSomePDC(),
           mockSomeBorrowerAppExistence(),
+        ]);
+
+        await Promise.all([
           mockBorrowerExistence(),
+          registerSomePDC(),
         ]);
 
         await personalDataList.add(
@@ -277,10 +279,13 @@ contract('PersonalDataList', function (accounts) {
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
-          registerSomePDC(),
-          registerOtherPDC(),
           mockSomeBorrowerAppExistence(),
           mockOtherBorrowerAppExistence(),
+        ]);
+
+        await Promise.all([
+          registerSomePDC(),
+          registerOtherPDC(),
           mockBorrowerExistence(),
           mockOtherBorrowerExistence(),
         ]);
@@ -460,10 +465,11 @@ contract('PersonalDataList', function (accounts) {
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
-          registerSomePDC(),
           mockSomeBorrowerAppExistence(),
           mockBorrowerExistence(),
         ]);
+
+        await registerSomePDC();
 
         await personalDataList.add(
           borrowerId,
