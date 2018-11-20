@@ -20,6 +20,14 @@ const contractVersion = 1;
 const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : size)]
   .map((_, index) => index);
 
+
+const REWARD_CYCLE = {
+  DAILY: 'd',
+  WEEKLY: 'w',
+  MONTHLY: 'm',
+  ANNUALLY: 'a',
+};
+
 contract('PersonalDataList', function (accounts) {
   const [
     borrowerId, otherBorrowerId,
@@ -35,6 +43,8 @@ contract('PersonalDataList', function (accounts) {
     category2: 'electronics',
     category3: 'computer',
     borrowerAppId: someBorrowerApp,
+    score: new BigNumber(100),
+    rewardCycle: REWARD_CYCLE.WEEKLY,
   };
 
   const otherPDC = {
@@ -43,6 +53,8 @@ contract('PersonalDataList', function (accounts) {
     category2: 'transporter',
     category3: 'car',
     borrowerAppId: otherBorrowerApp,
+    score: new BigNumber(200),
+    rewardCycle: REWARD_CYCLE.ANNUALLY,
   };
 
   const borrowerData = {
@@ -51,10 +63,10 @@ contract('PersonalDataList', function (accounts) {
   };
 
   const registerSomePDC = () => personalDataCategory.add(
-    somePDC.code, somePDC.category1, somePDC.category2, somePDC.category3, somePDC.borrowerAppId, { from: owner }
+    somePDC.code, somePDC.category1, somePDC.category2, somePDC.category3, somePDC.borrowerAppId, somePDC.score, somePDC.rewardCycle, { from: owner }
   );
   const registerOtherPDC = () => personalDataCategory.add(
-    otherPDC.code, otherPDC.category1, otherPDC.category2, otherPDC.category3, otherPDC.borrowerAppId, { from: owner }
+    otherPDC.code, otherPDC.category1, otherPDC.category2, otherPDC.category3, otherPDC.borrowerAppId, otherPDC.score, otherPDC.rewardCycle, { from: owner }
   );
   const mockSomeBorrowerAppExistence = () => borrowerApp.mockSetContainingId(somePDC.borrowerAppId);
   const mockOtherBorrowerAppExistence = () => borrowerApp.mockSetContainingId(otherPDC.borrowerAppId);

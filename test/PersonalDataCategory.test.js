@@ -17,6 +17,26 @@ const contractVersion = 1;
 const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : size)]
   .map((_, index) => index);
 
+const REWARD_CYCLE = {
+  DAILY: 'd',
+  WEEKLY: 'w',
+  MONTHLY: 'm',
+  ANNUALLY: 'a',
+};
+
+const getInvalidRewardCycle = () => {
+  const rewardCycleCodes = [REWARD_CYCLE.DAILY, REWARD_CYCLE.WEEKLY, REWARD_CYCLE.MONTHLY, REWARD_CYCLE.ANNUALLY];
+  let randomLetter;
+  do {
+    const alphabetIndex = ~~(Math.random() * 26);
+    const isUpperCase = ~~(Math.random() * 2);
+    const baseCharCode = isUpperCase ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
+    randomLetter = String.fromCharCode(baseCharCode + alphabetIndex);
+  }
+  while (rewardCycleCodes.includes(randomLetter));
+  return randomLetter;
+};
+
 contract('PersonalDataCategory', function (accounts) {
   const [
     someBorrowerApp, otherBorrowerApp,
@@ -31,6 +51,8 @@ contract('PersonalDataCategory', function (accounts) {
     category2: 'electronics',
     category3: 'computer',
     borrowerAppId: someBorrowerApp,
+    score: new BigNumber(100),
+    rewardCycle: REWARD_CYCLE.WEEKLY,
   };
 
   const otherPDC = {
@@ -39,6 +61,8 @@ contract('PersonalDataCategory', function (accounts) {
     category2: 'transporter',
     category3: 'car',
     borrowerAppId: otherBorrowerApp,
+    score: new BigNumber(200),
+    rewardCycle: REWARD_CYCLE.ANNUALLY,
   };
 
   const mockSomeBorrowerAppExistence = () => borrowerApp.mockSetContainingId(somePDC.borrowerAppId);
@@ -60,18 +84,18 @@ contract('PersonalDataCategory', function (accounts) {
       it('add a perosnal data category', async function () {
         await mockSomeBorrowerAppExistence();
 
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         await personalDataCategory.add(
-          code, category1, category2, category3, borrowerAppId,
+          code, category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: owner }
         ).should.be.fulfilled;
       });
 
       it('emits an event on adding an perosnal data category', async function () {
         await mockSomeBorrowerAppExistence();
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         const events = await eventsIn(personalDataCategory.add(
-          code, category1, category2, category3, borrowerAppId,
+          code, category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: owner }
         ));
 
@@ -84,17 +108,17 @@ contract('PersonalDataCategory', function (accounts) {
       it('reverts on adding a perosnal data category by non owner', async function () {
         await mockSomeBorrowerAppExistence();
 
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         await personalDataCategory.add(
-          code, category1, category2, category3, borrowerAppId,
+          code, category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: nonOwner }
         ).should.be.rejectedWith(/revert/);
       });
 
       it('reverts on adding a perosnal data category with unregistered borrower app', async function () {
-        const { code, category1, category2, category3 } = somePDC;
+        const { code, category1, category2, category3, score, rewardCycle } = somePDC;
         await personalDataCategory.add(
-          code, category1, category2, category3, nonOwner,
+          code, category1, category2, category3, nonOwner, score, rewardCycle,
           { from: owner }
         ).should.be.rejectedWith(/Borrower app is not found/);
       });
@@ -108,6 +132,8 @@ contract('PersonalDataCategory', function (accounts) {
           somePDC.category2,
           somePDC.category3,
           somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
           { from: owner }
         );
 
@@ -117,6 +143,8 @@ contract('PersonalDataCategory', function (accounts) {
           otherPDC.category2,
           otherPDC.category3,
           somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
           { from: owner }
         ).should.be.rejectedWith(/Personal data category code already exists/);
       });
@@ -130,6 +158,8 @@ contract('PersonalDataCategory', function (accounts) {
           somePDC.category2,
           somePDC.category3,
           somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
           { from: owner }
         );
 
@@ -139,8 +169,34 @@ contract('PersonalDataCategory', function (accounts) {
           somePDC.category2,
           somePDC.category3,
           somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
           { from: owner },
         ).should.be.rejectedWith(/Personal data category composition already exists/);
+      });
+
+      it('reverts on adding a perosnal data category with invalid reward cycle', async function () {
+        await mockSomeBorrowerAppExistence();
+        await personalDataCategory.add(
+          otherPDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          somePDC.score,
+          getInvalidRewardCycle(),
+          { from: owner },
+        ).should.be.rejectedWith(/Personal data reward cycle is invalid/);
+        await personalDataCategory.add(
+          otherPDC.code,
+          somePDC.category1,
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          somePDC.score,
+          getInvalidRewardCycle(),
+          { from: owner },
+        ).should.be.rejectedWith(/Personal data reward cycle is invalid/);
       });
     });
 
@@ -148,12 +204,12 @@ contract('PersonalDataCategory', function (accounts) {
       await mockSomeBorrowerAppExistence();
 
       await personalDataCategory.add(
-        somePDC.code, somePDC.category1, somePDC.category2, somePDC.category3, somePDC.borrowerAppId,
+        somePDC.code, somePDC.category1, somePDC.category2, somePDC.category3, somePDC.borrowerAppId, somePDC.score, somePDC.rewardCycle,
         { from: owner }
       ).should.be.rejectedWith(/BorrowerApp contract is not set/);
 
       await personalDataCategory.add(
-        otherPDC.code, otherPDC.category1, otherPDC.category2, otherPDC.category3, otherPDC.borrowerAppId,
+        otherPDC.code, otherPDC.category1, otherPDC.category2, otherPDC.category3, otherPDC.borrowerAppId, otherPDC.score, otherPDC.rewardCycle,
         { from: owner }
       ).should.be.rejectedWith(/BorrowerApp contract is not set/);
     });
@@ -168,48 +224,48 @@ contract('PersonalDataCategory', function (accounts) {
         ]);
 
         // Register some personal data category
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         await personalDataCategory.add(
-          code, category1, category2, category3, borrowerAppId,
+          code, category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: owner },
         );
       });
 
       it('updates the category composition', async function () {
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         const newCategory3 = 'cellphone';
         await personalDataCategory.update(
-          code, category1, category2, newCategory3,
+          code, category1, category2, newCategory3, score, rewardCycle,
           { from: owner }
         ).should.be.fulfilled;
 
         // use old category composition
         await personalDataCategory.add(
-          code.add(1), category1, category2, category3, borrowerAppId,
+          code.add(1), category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: owner }
         ).should.be.fulfilled;
       });
 
       it('uses the old composite category after updates', async function () {
-        const { code, category1, category2, category3, borrowerAppId } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = somePDC;
         const newCategory3 = 'cellphone';
         await personalDataCategory.update(
-          code, category1, category2, newCategory3,
+          code, category1, category2, newCategory3, score, rewardCycle,
           { from: owner }
         );
 
         // now old category composition is available
         await personalDataCategory.add(
-          code.add(1), category1, category2, category3, borrowerAppId,
+          code.add(1), category1, category2, category3, borrowerAppId, score, rewardCycle,
           { from: owner }
         ).should.be.fulfilled;
       });
 
-      it('emit an event on updating the category composition', async function () {
-        const { code, category1, category2 } = somePDC;
+      it('emit an event on updating personal data category', async function () {
+        const { code, category1, category2, score, rewardCycle } = somePDC;
         const newCategory3 = 'cellphone';
         const events = await eventsIn(personalDataCategory.update(
-          code, category1, category2, newCategory3,
+          code, category1, category2, newCategory3, score, rewardCycle,
           { from: owner }
         ));
 
@@ -217,36 +273,50 @@ contract('PersonalDataCategory', function (accounts) {
           name: 'LogPersonalDataCategoryUpdated',
           args: {
             code,
-            category1: (category1),
-            category2: (category2),
-            category3: (newCategory3),
+            category1,
+            category2,
+            category3: newCategory3,
+            score,
+            rewardCycle,
           },
         });
       });
 
       it('reverts on updating duplicated category composition', async function () {
-        const { code, category1, category2, category3 } = somePDC;
+        const { code, category1, category2, category3, score, rewardCycle } = somePDC;
         await personalDataCategory.update(
-          code, category1, category2, category3,
+          code, category1, category2, category3, score, rewardCycle,
           { from: owner }
         ).should.be.rejectedWith(/Personal data category composition to update already exists/);
       });
 
+      it('reverts on updating duplicated category composition', async function () {
+        const { code, category1, category2, score } = somePDC;
+        await personalDataCategory.update(
+          code, category1, category2, 'new category 3', score, getInvalidRewardCycle(),
+          { from: owner }
+        ).should.be.rejectedWith(/Personal data reward cycle is invalid/);
+        await personalDataCategory.update(
+          code, category1, category2, 'new category 3', score, getInvalidRewardCycle(),
+          { from: owner }
+        ).should.be.rejectedWith(/Personal data reward cycle is invalid/);
+      });
+
       it('reverts on updating the category composition by non owner', async function () {
-        const { code, category1, category2 } = somePDC;
+        const { code, category1, category2, score, rewardCycle } = somePDC;
         const newCategory3 = 'cellphone';
         await personalDataCategory.update(
-          code, category1, category2, newCategory3,
+          code, category1, category2, newCategory3, score, rewardCycle,
           { from: nonOwner }
         ).should.be.rejectedWith(/revert/);
       });
     });
 
     it('reverts on updating an unregistred personal data category', async function () {
-      const { code, category1, category2 } = somePDC;
+      const { code, category1, category2, score, rewardCycle } = somePDC;
       const newCategory3 = 'cellphone';
       await personalDataCategory.update(
-        code, category1, category2, newCategory3,
+        code, category1, category2, newCategory3, score, rewardCycle,
         { from: owner }
       ).should.be.rejectedWith(/Personal data category code is not found/);
     });
@@ -272,6 +342,8 @@ contract('PersonalDataCategory', function (accounts) {
             somePDC.category2,
             somePDC.category3,
             somePDC.borrowerAppId,
+            somePDC.score,
+            somePDC.rewardCycle,
             { from: owner },
           ),
         ]);
@@ -281,16 +353,20 @@ contract('PersonalDataCategory', function (accounts) {
           otherPDC.category2,
           otherPDC.category3,
           otherPDC.borrowerAppId,
+          otherPDC.score,
+          otherPDC.rewardCycle,
           { from: owner },
         );
       });
 
       it('gets a personal data category with code', async function () {
-        const [, category1, category2, category3, borrowerAppId, updatedTime] = await personalDataCategory.get(somePDC.code);
+        const [, category1, category2, category3, borrowerAppId, score, rewardCycle, updatedTime] = await personalDataCategory.get(somePDC.code);
         category1.should.be.equal(somePDC.category1);
         category2.should.be.equal(somePDC.category2);
         category3.should.be.equal(somePDC.category3);
         borrowerAppId.should.be.equal(somePDC.borrowerAppId);
+        score.should.be.bignumber.equal(somePDC.score);
+        rewardCycle.should.be.equal(somePDC.rewardCycle);
         updatedTime.should.be.withinTimeTolerance(addedTime);
       });
 
@@ -302,12 +378,14 @@ contract('PersonalDataCategory', function (accounts) {
 
         const expectedCategories = [somePDC, otherPDC];
 
-        categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        categories.forEach(([, category1, category2, category3, borrowerAppId, score, rewardCycle], i) => {
           const expectedCategory = expectedCategories[i];
           category1.should.be.equal(expectedCategory.category1);
           category2.should.be.equal(expectedCategory.category2);
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+          score.should.be.bignumber.equal(expectedCategory.score);
+          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
         });
       });
 
@@ -342,12 +420,14 @@ contract('PersonalDataCategory', function (accounts) {
 
         const expectedCategories = [somePDC, otherPDC];
 
-        categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        categories.forEach(([, category1, category2, category3, borrowerAppId, score, rewardCycle], i) => {
           const expectedCategory = expectedCategories[i];
           category1.should.be.equal(expectedCategory.category1);
           category2.should.be.equal(expectedCategory.category2);
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+          score.should.be.bignumber.equal(expectedCategory.score);
+          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
         });
       });
 
@@ -363,12 +443,14 @@ contract('PersonalDataCategory', function (accounts) {
 
         const expectedCategories = [somePDC, otherPDC];
 
-        categories.forEach(([, category1, category2, category3, borrowerAppId], i) => {
+        categories.forEach(([, category1, category2, category3, borrowerAppId, score, rewardCycle], i) => {
           const expectedCategory = expectedCategories[i];
           category1.should.be.equal(expectedCategory.category1);
           category2.should.be.equal(expectedCategory.category2);
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
+          score.should.be.bignumber.equal(expectedCategory.score);
+          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
         });
       });
 
