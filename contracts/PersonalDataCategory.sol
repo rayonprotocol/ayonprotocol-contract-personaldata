@@ -40,6 +40,11 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
             BorrowerApp(borrowerAppContractAddress).contains(_borrowerAppId),
             "Borrower app is not found"
         );
+        require(bytes(_category1).length > 0, "Category1 is required");
+        require(
+            bytes(_category2).length == 0 && bytes(_category3).length == 0
+            || bytes(_category2).length > 0,
+            "Category2 can not be empty while Category3 exists");
         bytes32 compoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
         require(!compoisiteCategoryToAddedMap[compoisiteCategory], "Personal data category composition already exists");
         require(_validateRewardCycle(_rewardCycle),  "Personal data reward cycle is invalid");
@@ -60,7 +65,11 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     function update(uint256 _code, string _category1, string _category2, string _category3, uint256 _score, string _rewardCycle) public onlyOwner {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         require(_contains(entry), "Personal data category code is not found");
-
+        require(bytes(_category1).length > 0, "Category1 is required");
+        require(
+            bytes(_category2).length == 0 && bytes(_category3).length == 0
+            || bytes(_category2).length > 0,
+            "Category2 can not be empty while Category3 exists");
         bytes32 newCompoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
         require(!compoisiteCategoryToAddedMap[newCompoisiteCategory], "Personal data category composition to update already exists");
         require(_validateRewardCycle(_rewardCycle),  "Personal data reward cycle is invalid");

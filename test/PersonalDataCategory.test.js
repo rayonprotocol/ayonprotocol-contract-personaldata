@@ -149,6 +149,34 @@ contract('PersonalDataCategory', function (accounts) {
         ).should.be.rejectedWith(/Personal data category code already exists/);
       });
 
+      it('reverts on adding a perosnal data category with empty Category1', async function () {
+        await mockSomeBorrowerAppExistence();
+        await personalDataCategory.add(
+          somePDC.code,
+          '',
+          somePDC.category2,
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
+          { from: owner }
+        ).should.be.rejectedWith(/Category1 is required/);
+      });
+
+      it('reverts on adding a perosnal data category with empty Category2 but not empty Category3', async function () {
+        await mockSomeBorrowerAppExistence();
+        await personalDataCategory.add(
+          somePDC.code,
+          somePDC.category1,
+          '',
+          somePDC.category3,
+          somePDC.borrowerAppId,
+          somePDC.score,
+          somePDC.rewardCycle,
+          { from: owner }
+        ).should.be.rejectedWith(/Category2 can not be empty while Category3 exists/);
+      });
+
       it('reverts on adding a perosnal data category with duplicated composition', async function () {
         await mockSomeBorrowerAppExistence();
 
@@ -290,7 +318,24 @@ contract('PersonalDataCategory', function (accounts) {
         ).should.be.rejectedWith(/Personal data category composition to update already exists/);
       });
 
-      it('reverts on updating duplicated category composition', async function () {
+      it('reverts on updating with empty Category1', async function () {
+        const { code, category2, category3, score, rewardCycle } = somePDC;
+        await personalDataCategory.update(
+          code, '', category2, category3, score, rewardCycle,
+          { from: owner }
+        ).should.be.rejectedWith(/Category1 is required/);
+      });
+
+
+      it('reverts on updating with empty Category2 but not empty Category3', async function () {
+        const { code, category1, category3, score, rewardCycle } = somePDC;
+        await personalDataCategory.update(
+          code, category1, '', category3, score, rewardCycle,
+          { from: owner }
+        ).should.be.rejectedWith(/Category2 can not be empty while Category3 exists/);
+      });
+
+      it('reverts on updating a perosnal data category with invalid reward cycle', async function () {
         const { code, category1, category2, score } = somePDC;
         await personalDataCategory.update(
           code, category1, category2, 'new category 3', score, getInvalidRewardCycle(),
