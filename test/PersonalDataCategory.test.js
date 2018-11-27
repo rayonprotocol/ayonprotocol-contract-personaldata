@@ -249,6 +249,7 @@ contract('PersonalDataCategory', function (accounts) {
         await Promise.all([
           personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           mockSomeBorrowerAppExistence(),
+          mockOtherBorrowerAppExistence(),
         ]);
 
         // Register some personal data category
@@ -270,6 +271,19 @@ contract('PersonalDataCategory', function (accounts) {
         // use old category composition
         await personalDataCategory.add(
           code.add(1), category1, category2, category3, borrowerAppId, score, rewardCycle,
+          { from: owner }
+        ).should.be.fulfilled;
+      });
+
+      it('updates the score,rewardCycle keeping category composition', async function () {
+        const { code, category1, category2, category3, score, rewardCycle } = somePDC;
+        await personalDataCategory.update(
+          code, category1, category2, category3, score + 200, rewardCycle,
+          { from: owner }
+        ).should.be.fulfilled;
+
+        await personalDataCategory.update(
+          code, category1, category2, category3, score + 200, REWARD_CYCLE.MONTHLY,
           { from: owner }
         ).should.be.fulfilled;
       });
@@ -311,9 +325,15 @@ contract('PersonalDataCategory', function (accounts) {
       });
 
       it('reverts on updating duplicated category composition', async function () {
-        const { code, category1, category2, category3, score, rewardCycle } = somePDC;
+        const { code, category1, category2, category3, borrowerAppId, score, rewardCycle } = otherPDC;
+        const { category1: dupCategory1, category2: dupCategory2, category3: dupCategory3 } = somePDC;
+        await personalDataCategory.add(
+          code, category1, category2, category3, borrowerAppId, score, rewardCycle,
+          { from: owner }
+        );
+
         await personalDataCategory.update(
-          code, category1, category2, category3, score, rewardCycle,
+          code, dupCategory1, dupCategory2, dupCategory3, score, rewardCycle,
           { from: owner }
         ).should.be.rejectedWith(/Personal data category composition to update already exists/);
       });
@@ -364,6 +384,77 @@ contract('PersonalDataCategory', function (accounts) {
         code, category1, category2, newCategory3, score, rewardCycle,
         { from: owner }
       ).should.be.rejectedWith(/Personal data category code is not found/);
+    });
+  });
+
+  describe('Unregister', async function () {
+    context('when perosnal data categories are registered', async function () {
+      let addedTime;
+
+      beforeEach(async function () {
+        await Promise.all([
+          personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
+          mockSomeBorrowerAppExistence(),
+          mockOtherBorrowerAppExistence(),
+        ]);
+
+        // Register personal data categories
+        [addedTime] = await Promise.all([
+          latestTime(),
+          personalDataCategory.add(
+            somePDC.code,
+            somePDC.category1,
+            somePDC.category2,
+            somePDC.category3,
+            somePDC.borrowerAppId,
+            somePDC.score,
+            somePDC.rewardCycle,
+            { from: owner },
+          ),
+        ]);
+        await personalDataCategory.add(
+          otherPDC.code,
+          otherPDC.category1,
+          otherPDC.category2,
+          otherPDC.category3,
+          otherPDC.borrowerAppId,
+          otherPDC.score,
+          otherPDC.rewardCycle,
+          { from: owner },
+        );
+      });
+
+      it('removes perosnal data category identified by code', async function () {
+        await personalDataCategory.remove(somePDC.code, { from: owner }).should.be.fulfilled;
+        await personalDataCategory.remove(otherPDC.code, { from: owner }).should.be.fulfilled;
+      });
+
+      it('emits an event on removing a perosnal data category identified by code', async function () {
+        const somePDCRemovalEvents = await eventsIn(personalDataCategory.remove(somePDC.code, { from: owner }));
+        somePDCRemovalEvents.should.deep.include({
+          name: 'LogPersonalDataCategoryDeleted',
+          args: { code: somePDC.code, borrowerAppId: somePDC.borrowerAppId },
+        });
+
+        const otherPDCRemovalEvents = await eventsIn(personalDataCategory.remove(otherPDC.code, { from: owner }));
+        otherPDCRemovalEvents.should.deep.include({
+          name: 'LogPersonalDataCategoryDeleted',
+          args: { code: otherPDC.code, borrowerAppId: otherPDC.borrowerAppId },
+        });
+      });
+
+      it('reverts on removing a perosnal data category by non owner', async function () {
+        await personalDataCategory.remove(somePDC.code, { from: nonOwner }).should.be.rejectedWith(/revert/);
+        await personalDataCategory.remove(otherPDC.code, { from: nonOwner }).should.be.rejectedWith(/revert/);
+      });
+
+      it('reverts on removing an unregistered perosnal data category', async function () {
+        const uknownCode = 999;
+        await personalDataCategory.remove(uknownCode, { from: owner }).should.be.rejectedWith(/Personal data category code is not found/);
+
+        await personalDataCategory.remove(somePDC.code, { from: owner }).should.be.fulfilled;
+        await personalDataCategory.remove(somePDC.code, { from: owner }).should.be.rejectedWith(/Personal data category code is not found/);
+      });
     });
   });
 

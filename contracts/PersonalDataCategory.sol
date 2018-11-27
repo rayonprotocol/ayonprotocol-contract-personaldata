@@ -28,6 +28,7 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     
     event LogPersonalDataCategoryAdded(uint256 indexed code, address indexed borrowerAppId);
     event LogPersonalDataCategoryUpdated(uint256 indexed code, string category1, string category2, string category3, uint256 score, string rewardCycle);
+    event LogPersonalDataCategoryDeleted(uint256 indexed code, address indexed borrowerAppId);
 
     // constructor
     constructor(uint16 version) RayonBase("PersonalDataCategory", version) public {}
@@ -70,13 +71,16 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
             bytes(_category2).length == 0 && bytes(_category3).length == 0
             || bytes(_category2).length > 0,
             "Category2 can not be empty while Category3 exists");
-        bytes32 newCompoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
-        require(!compoisiteCategoryToAddedMap[newCompoisiteCategory], "Personal data category composition to update already exists");
-        require(_validateRewardCycle(_rewardCycle),  "Personal data reward cycle is invalid");
-        
         bytes32 oldCompoisiteCategory = keccak256(abi.encodePacked(entry.category1, entry.category2, entry.category3));
-        compoisiteCategoryToAddedMap[oldCompoisiteCategory] = false;
-        compoisiteCategoryToAddedMap[newCompoisiteCategory] = true;
+        bytes32 newCompoisiteCategory = keccak256(abi.encodePacked(_category1, _category2, _category3));
+        require(
+            !compoisiteCategoryToAddedMap[newCompoisiteCategory] || oldCompoisiteCategory == newCompoisiteCategory,
+            "Personal data category composition to update already exists");
+        require(_validateRewardCycle(_rewardCycle),  "Personal data reward cycle is invalid");
+        if (oldCompoisiteCategory != newCompoisiteCategory) {
+            compoisiteCategoryToAddedMap[oldCompoisiteCategory] = false;
+            compoisiteCategoryToAddedMap[newCompoisiteCategory] = true;
+        }
         if (keccak256(abi.encodePacked(entry.category1)) != keccak256(abi.encodePacked(_category1))) entry.category1 = _category1;
         if (keccak256(abi.encodePacked(entry.category2)) != keccak256(abi.encodePacked(_category2))) entry.category2 = _category2;
         if (keccak256(abi.encodePacked(entry.category3)) != keccak256(abi.encodePacked(_category3))) entry.category3 = _category3;
@@ -121,8 +125,35 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
     function getborrowerAppCodeListSize(address _borrowerAppId) public view returns (uint256) {
         return borrowerAppIdToCodeListMap[_borrowerAppId].length;
     }
-    
 
+    /**
+     * @dev Remove category identified by code
+     * Note that once data category is deregistered, it can be registered newly without any contraint.
+     * This may lead unexpected relationship with orphan entries in PersonalDataList.
+     */
+    function remove(uint256 _code) public onlyOwner {
+        PersonalDataCategoryEntry storage entry = categoryMap[_code];
+        require(_contains(entry), "Personal data category code is not found");
+
+        address borrowerAppId = entry.borrowerAppId;
+        bytes32 compoisiteCategory = keccak256(abi.encodePacked(entry.category1, entry.category2, entry.category3));
+        compoisiteCategoryToAddedMap[compoisiteCategory] = false;
+
+        uint256 lastCodeOfList = codeList[codeList.length - 1];
+        categoryMap[lastCodeOfList].index = entry.index;
+        codeList[entry.index] = lastCodeOfList;
+        codeList.length--;
+
+        uint256[] storage borrowerAppCodeList = borrowerAppIdToCodeListMap[borrowerAppId];
+        uint256 lastCodeOfBorrowerAppCodeList = borrowerAppCodeList[borrowerAppCodeList.length - 1];
+        borrowerAppCodeList[entry.borrowerAppIdToCodeIndex] = lastCodeOfBorrowerAppCodeList;
+        categoryMap[lastCodeOfList].borrowerAppIdToCodeIndex = entry.borrowerAppIdToCodeIndex;
+        borrowerAppCodeList.length--;
+
+        delete categoryMap[_code];
+        emit LogPersonalDataCategoryDeleted(_code, borrowerAppId);
+    }
+    
     function contains(uint256 _code) public view returns (bool) {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];
         return _contains(entry);
