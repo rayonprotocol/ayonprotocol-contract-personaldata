@@ -74,9 +74,9 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         emit LogPersonalDataUpdated(_borrowerId, _categoryCode, borrowerAppId);
     }
 
-    function get(address _borrowerId, uint256 _categoryCode) public view returns (bytes32, uint256) {
+    function get(address _borrowerId, uint256 _categoryCode) public view returns (bytes32, address, uint256) {
         PersonalDataEntry storage entry = _getEntry(_borrowerId, _categoryCode);
-        return (entry.dataHash, entry.updatedTime);
+        return (entry.dataHash, entry.borrowerAppId, entry.updatedTime);
     }
 
     function size() public view returns (uint256) {
@@ -93,7 +93,7 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         return (entry.borrowerId, entry.categoryCode, entry.dataHash, entry.borrowerAppId, entry.updatedTime);
     }
 
-    function getByBorrowerDataListIndex(address _borrowerId, uint256 _index) public view returns (uint256, bytes32, uint256) {
+    function getByBorrowerDataListIndex(address _borrowerId, uint256 _index) public view returns (uint256, bytes32, address, uint256) {
         bytes32[] storage borrowerDataKeyList = borrowerToKeyListMap[_borrowerId];
         require(
             borrowerDataKeyList.length > 0 && _contains(borrowerDataKeyList[_index]),
@@ -101,14 +101,14 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         );
         bytes32 key = keyList[_index];
         PersonalDataEntry storage entry = entryMap[key];
-        return (entry.categoryCode, entry.dataHash, entry.updatedTime);
+        return (entry.categoryCode, entry.dataHash, entry.borrowerAppId, entry.updatedTime);
     }
 
     function getBorrowerDataListSize(address _borrowerId) public view returns (uint256) {
         return borrowerToKeyListMap[_borrowerId].length;
     }
 
-    function getByCategoryDataListIndex (uint256 _categoryCode, uint256 _index) public view returns (address, bytes32, uint256) {
+    function getByCategoryDataListIndex (uint256 _categoryCode, uint256 _index) public view returns (address, bytes32, address, uint256) {
         bytes32[] storage categoryDataKeyList = categoryCodeToKeyListMap[_categoryCode];
         require(
             categoryDataKeyList.length > 0 && _contains(categoryDataKeyList[_index]),
@@ -116,7 +116,7 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         );
         bytes32 key = categoryDataKeyList[_index];
         PersonalDataEntry storage entry = entryMap[key];
-        return (entry.borrowerId, entry.dataHash, entry.updatedTime);
+        return (entry.borrowerId, entry.dataHash, entry.borrowerAppId, entry.updatedTime);
     }
 
     function getCategoryDataListSize(uint256 _categoryCode) public view returns (uint256) {

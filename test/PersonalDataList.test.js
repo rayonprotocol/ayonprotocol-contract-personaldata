@@ -314,9 +314,9 @@ contract('PersonalDataList', function (accounts) {
       });
 
       it('get personal data for both borrower and category code', async function () {
-        const [dataHash, updatedTime] = await personalDataList.get(borrowerId, somePDC.code);
-
+        const [dataHash, borrowerAppId, updatedTime] = await personalDataList.get(borrowerId, somePDC.code);
         dataHash.should.be.equal(borrowerData[somePDC.code]);
+        borrowerAppId.should.be.equal(somePDC.borrowerAppId);
         updatedTime.should.be.withinTimeTolerance(someDataAddedTime);
       });
 
@@ -382,14 +382,15 @@ contract('PersonalDataList', function (accounts) {
         );
 
         const expectedDataList = [
-          { categoryCode: somePDC.code, dataHash: borrowerData[somePDC.code], updatedTime: someDataAddedTime },
-          { categoryCode: otherPDC.code, dataHash: borrowerData[otherPDC.code], updatedTime: otherDataAddedTime },
+          { categoryCode: somePDC.code, dataHash: borrowerData[somePDC.code], borrowerAppId: somePDC.borrowerAppId, updatedTime: someDataAddedTime },
+          { categoryCode: otherPDC.code, dataHash: borrowerData[otherPDC.code], borrowerAppId: otherPDC.borrowerAppId, updatedTime: otherDataAddedTime },
         ];
 
-        dataList.forEach(([categoryCode, dataHash, updatedTime], i) => {
+        dataList.forEach(([categoryCode, dataHash, borrowerAppId, updatedTime], i) => {
           const expectedData = expectedDataList[i];
           categoryCode.should.be.bignumber.equal(expectedData.categoryCode);
           dataHash.should.be.equal(toByte32Hex(expectedData.dataHash));
+          borrowerAppId.should.be.equal(expectedData.borrowerAppId);
           updatedTime.should.be.withinTimeTolerance(expectedData.updatedTime);
         });
       });
@@ -414,14 +415,15 @@ contract('PersonalDataList', function (accounts) {
         );
 
         const expectedDataList = [
-          { borrowerId: borrowerId, dataHash: borrowerData[somePDC.code], updatedTime: someDataAddedTime },
-          { borrowerId: otherBorrowerId, dataHash: otherBorrowerData, updatedTime: otherDataAddedTime },
+          { borrowerId: borrowerId, dataHash: borrowerData[somePDC.code], borrowerAppId: somePDC.borrowerAppId, updatedTime: someDataAddedTime },
+          { borrowerId: otherBorrowerId, dataHash: otherBorrowerData, borrowerAppId: somePDC.borrowerAppId, updatedTime: otherDataAddedTime },
         ];
 
-        dataList.forEach(([borrowerId, dataHash, updatedTime], i) => {
+        dataList.forEach(([borrowerId, dataHash, borrowerAppId, updatedTime], i) => {
           const expectedData = expectedDataList[i];
           borrowerId.should.be.bignumber.equal(expectedData.borrowerId);
           dataHash.should.be.equal(toByte32Hex(expectedData.dataHash));
+          borrowerAppId.should.be.equal(expectedData.borrowerAppId);
           updatedTime.should.be.withinTimeTolerance(expectedData.updatedTime);
         });
       });
