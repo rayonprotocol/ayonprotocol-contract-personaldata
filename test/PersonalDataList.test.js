@@ -22,10 +22,10 @@ const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : 
 
 
 const REWARD_CYCLE = {
-  DAILY: 'd',
-  WEEKLY: 'w',
-  MONTHLY: 'm',
-  ANNUALLY: 'a',
+  DAILY: new BigNumber(0),
+  WEEKLY: new BigNumber(1),
+  MONTHLY: new BigNumber(2),
+  ANNUALLY: new BigNumber(3),
 };
 
 contract('PersonalDataList', function (accounts) {

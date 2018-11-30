@@ -18,24 +18,16 @@ const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : 
   .map((_, index) => index);
 
 const REWARD_CYCLE = {
-  DAILY: 'd',
-  WEEKLY: 'w',
-  MONTHLY: 'm',
-  ANNUALLY: 'a',
+  DAILY: new BigNumber(0),
+  WEEKLY: new BigNumber(1),
+  MONTHLY: new BigNumber(2),
+  ANNUALLY: new BigNumber(3),
 };
-
-const getInvalidRewardCycle = () => {
-  const rewardCycleCodes = [REWARD_CYCLE.DAILY, REWARD_CYCLE.WEEKLY, REWARD_CYCLE.MONTHLY, REWARD_CYCLE.ANNUALLY];
-  let randomLetter;
-  do {
-    const alphabetIndex = ~~(Math.random() * 26);
-    const isUpperCase = ~~(Math.random() * 2);
-    const baseCharCode = isUpperCase ? 'A'.charCodeAt(0) : 'a'.charCodeAt(0);
-    randomLetter = String.fromCharCode(baseCharCode + alphabetIndex);
-  }
-  while (rewardCycleCodes.includes(randomLetter));
-  return randomLetter;
-};
+const MAX_UINT8 = Math.pow(2, 8) - 1;
+const MAX_REWARD_CYCLE = REWARD_CYCLE.ANNUALLY.toNumber();
+const getInvalidRewardCycle = () => new BigNumber(
+  MAX_REWARD_CYCLE + 1 + ~~(Math.random() * (MAX_UINT8 - MAX_REWARD_CYCLE - 1))
+);
 
 contract('PersonalDataCategory', function (accounts) {
   const [
@@ -502,7 +494,7 @@ contract('PersonalDataCategory', function (accounts) {
         category3.should.be.equal(somePDC.category3);
         borrowerAppId.should.be.equal(somePDC.borrowerAppId);
         score.should.be.bignumber.equal(somePDC.score);
-        rewardCycle.should.be.equal(somePDC.rewardCycle);
+        rewardCycle.should.be.bignumber.equal(somePDC.rewardCycle);
         updatedTime.should.be.withinTimeTolerance(addedTime);
       });
 
@@ -521,7 +513,7 @@ contract('PersonalDataCategory', function (accounts) {
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
           score.should.be.bignumber.equal(expectedCategory.score);
-          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
+          rewardCycle.should.be.bignumber.equal(expectedCategory.rewardCycle);
         });
       });
 
@@ -563,7 +555,7 @@ contract('PersonalDataCategory', function (accounts) {
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
           score.should.be.bignumber.equal(expectedCategory.score);
-          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
+          rewardCycle.should.be.bignumber.equal(expectedCategory.rewardCycle);
         });
       });
 
@@ -586,7 +578,7 @@ contract('PersonalDataCategory', function (accounts) {
           category3.should.be.equal(expectedCategory.category3);
           borrowerAppId.should.be.equal(expectedCategory.borrowerAppId);
           score.should.be.bignumber.equal(expectedCategory.score);
-          rewardCycle.should.be.equal(expectedCategory.rewardCycle);
+          rewardCycle.should.be.bignumber.equal(expectedCategory.rewardCycle);
         });
       });
 
