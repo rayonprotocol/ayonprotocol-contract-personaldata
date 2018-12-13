@@ -153,6 +153,15 @@ contract PersonalDataCategory is UsesBorrowerApp, RayonBase {
         delete categoryMap[_code];
         emit LogPersonalDataCategoryDeleted(_code, borrowerAppId);
     }
+
+    function getRewardCycleInSecondsByCode(uint256 _code) public view returns (uint256) {
+        PersonalDataCategoryEntry storage entry = categoryMap[_code];
+        require(_contains(entry), "Personal data category code is not found");
+        if (entry.rewardCycle == 0) return 1 days;
+        else if (entry.rewardCycle == 1) return 1 weeks;
+        else if (entry.rewardCycle == 2) return 30 days;
+        else if (entry.rewardCycle == 3) return 365 days;
+    }
     
     function contains(uint256 _code) public view returns (bool) {
         PersonalDataCategoryEntry storage entry = categoryMap[_code];

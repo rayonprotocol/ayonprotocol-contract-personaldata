@@ -4,12 +4,14 @@ import "../../rayonprotocol-contract-common/contracts/RayonBase.sol";
 import "./contractReference/UsesPersonalDataCategory.sol";
 import "../../rayonprotocol-contract-borrower/contracts/contractReference/UsesBorrowerApp.sol";
 import "../../rayonprotocol-contract-borrower/contracts/contractReference/UsesBorrower.sol";
+import "../../rayonprotocol-contract-borrower/contracts/contractReference/UsesBorrowerScore.sol";
 
 import "./PersonalDataCategory.sol";
 import "../../rayonprotocol-contract-borrower/contracts/BorrowerApp.sol";
 import "../../rayonprotocol-contract-borrower/contracts/Borrower.sol";
+import "../../rayonprotocol-contract-borrower/contracts/BorrowerScore.sol";
 
-contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCategory, RayonBase {
+contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCategory, UsesBorrowerScore, RayonBase {
     
     struct PersonalDataEntry {
         address borrowerId;
@@ -44,11 +46,24 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
             "msg.sender is not registred borrower app: only registered borrower app can add personal data for borrower"
         );
         require(Borrower(borrowerContractAddress).contains(_borrowerId), "Borrower is not found");
-        require(PersonalDataCategory(personalDataCategoryContractAddress).contains(_categoryCode), "Personal data category code is not found");
+        
+        PersonalDataCategory personalDataCategoryContract = PersonalDataCategory(personalDataCategoryContractAddress);
+
+        require(personalDataCategoryContract.contains(_categoryCode), "Personal data category code is not found");
         
         bytes32 key = keccak256(abi.encodePacked(_borrowerId, _categoryCode));
         require(!_contains(key), "Personal data for both borrower and category code already exists");
+
         PersonalDataEntry storage entry = entryMap[key];
+        uint256 currentTime = block.timestamp;
+        
+        if (
+            _shouldAddScore(personalDataCategoryContract.getRewardCycleInSecondsByCode(_categoryCode) ,entry.updatedTime, currentTime)
+        ) {
+            uint256 categoryScore;
+            (,,,,,categoryScore,,) = personalDataCategoryContract.get(_categoryCode); // only use sixth element(categoryScore) of returing tuple
+            BorrowerScore(borrowerScoreContractAddress).add(borrowerAppId, _borrowerId, categoryScore);
+        }
         
         entry.borrowerId = _borrowerId;
         entry.categoryCode = _categoryCode;
@@ -57,7 +72,8 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         entry.keyListIndex = keyList.push(key) - 1;
         entry.borrowerToKeyListIndex = borrowerToKeyListMap[_borrowerId].push(key) - 1;
         entry.categoryCodeToKeyListIndex = categoryCodeToKeyListMap[_categoryCode].push(key) - 1;
-        entry.updatedTime = block.timestamp;
+        entry.updatedTime = currentTime;
+
         emit LogPersonalDataAdded(_borrowerId, _categoryCode, borrowerAppId);
     }
 
@@ -159,6 +175,10 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
     function contains(address _borrowerId, uint256 _categoryCode) public view returns (bool) {
         bytes32 key = keccak256(abi.encodePacked(_borrowerId, _categoryCode));
         return _contains(key);
+    }
+    
+    function _shouldAddScore(uint256 _cycleInSeconds, uint256 _updatedTime, uint256 _currentTime) private pure returns (bool) {
+        return _updatedTime + _cycleInSeconds < _currentTime;
     }
 
     function _getEntry(address _borrowerId, uint256 _categoryCode) private view returns (PersonalDataEntry storage) {

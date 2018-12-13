@@ -5,6 +5,7 @@ import toByte32Hex from './helpers/toByte32Hex';
 
 const PersonalDataList = artifacts.require('PersonalDataList.sol');
 const PersonalDataCategory = artifacts.require('PersonalDataCategory.sol');
+const BorrowerScore = artifacts.require('./BorrowerScore.sol');
 const BorrowerApp = artifacts.require('BorrowerAppMock.sol');
 const Borrower = artifacts.require('BorrowerMock.sol');
 const BigNumber = web3.BigNumber;
@@ -35,7 +36,7 @@ contract('PersonalDataList', function (accounts) {
     nonOwner, owner,
   ] = accounts;
 
-  let personalDataList, personalDataCategory, borrowerApp, borrower;
+  let personalDataList, personalDataCategory, borrowerApp, borrower, borrowerScore;
 
   const somePDC = { // PDC stands for Personal Data Category
     code: new BigNumber(200),
@@ -74,13 +75,16 @@ contract('PersonalDataList', function (accounts) {
   const mockOtherBorrowerExistence = () => borrower.mockSetContainingId(otherBorrowerId);
 
   beforeEach(async function () {
-    [personalDataList, personalDataCategory, borrowerApp, borrower] = await Promise.all([
+    [personalDataList, personalDataCategory, borrowerApp, borrower, borrowerScore] = await Promise.all([
       PersonalDataList.new(contractVersion, { from: owner }),
       PersonalDataCategory.new(contractVersion, { from: owner }),
       BorrowerApp.new(contractVersion, { from: owner }),
       Borrower.new(contractVersion, { from: owner }),
+      BorrowerScore.new(contractVersion, { from: owner }),
     ]);
     await personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner });
+    await borrowerScore.transferOwnership(personalDataList.address, { from: owner });
+    await personalDataList.claimContractOwnership(borrowerScore.address, {from: owner});
   });
 
   describe('Register', async function () {
@@ -88,6 +92,7 @@ contract('PersonalDataList', function (accounts) {
       beforeEach(async function () {
         await personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner });
         await personalDataList.setBorrowerContractAddress(borrower.address, { from: owner });
+        await personalDataList.setBorrowerScoreContractAddress(borrowerScore.address, { from: owner });
         await personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner });
       });
 
@@ -222,6 +227,7 @@ contract('PersonalDataList', function (accounts) {
         await Promise.all([
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
+          personalDataList.setBorrowerScoreContractAddress(borrowerScore.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
           mockSomeBorrowerAppExistence(),
         ]);
@@ -290,6 +296,7 @@ contract('PersonalDataList', function (accounts) {
         await Promise.all([
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
+          personalDataList.setBorrowerScoreContractAddress(borrowerScore.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
           mockSomeBorrowerAppExistence(),
           mockOtherBorrowerAppExistence(),
@@ -478,6 +485,7 @@ contract('PersonalDataList', function (accounts) {
         await Promise.all([
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
           personalDataList.setBorrowerContractAddress(borrower.address, { from: owner }),
+          personalDataList.setBorrowerScoreContractAddress(borrowerScore.address, { from: owner }),
           personalDataList.setPersonalDataCategoryContractAddress(personalDataCategory.address, { from: owner }),
           mockSomeBorrowerAppExistence(),
           mockBorrowerExistence(),

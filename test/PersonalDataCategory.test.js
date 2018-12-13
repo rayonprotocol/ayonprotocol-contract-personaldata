@@ -582,6 +582,15 @@ contract('PersonalDataCategory', function (accounts) {
         });
       });
 
+      it('get reward cycle in time by category code', async function() {
+        const dayInSeconds = new BigNumber(60 * 60 * 24);
+        const weekInSeconds = dayInSeconds.mul(7);
+        const yearInSeconds = dayInSeconds.mul(365);
+
+        (await personalDataCategory.getRewardCycleInSecondsByCode(somePDC.code)).should.be.bignumber.equal(weekInSeconds);
+        (await personalDataCategory.getRewardCycleInSecondsByCode(otherPDC.code)).should.be.bignumber.equal(yearInSeconds);
+      });
+      
       it('reverts on getting a personal data category for borrower app by invalid index', async function () {
         await personalDataCategory.getByBorrowerAppCodeListIndex(somePDC.borrowerAppId, 0)
           .should.be.fulfilled;
