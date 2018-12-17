@@ -1,4 +1,6 @@
 import { latestTime } from 'openzeppelin-solidity/test/helpers/latestTime';
+import { increaseTimeTo, duration } from 'openzeppelin-solidity/test/helpers/increaseTime';
+
 import eventsIn from './helpers/eventsIn';
 import assertWithinTimeTolerance from './helpers/assertWithinTimeTolerance';
 import toByte32Hex from './helpers/toByte32Hex';
@@ -21,6 +23,21 @@ const contractVersion = 1;
 const range = (size) => [...Array(size instanceof BigNumber ? size.toNumber() : size)]
   .map((_, index) => index);
 
+// convert cycle to seconds according to how `PersonalDataCategory` contract treats cycles.
+const cycleInSeconds = (cycle) => {
+  const day = 60 * 60 * 24;
+  switch (cycle) {
+  case REWARD_CYCLE.DAILY:
+    return day;
+  case REWARD_CYCLE.WEEKLY:
+    return day * 7;
+  case REWARD_CYCLE.MONTHLY:
+    return day * 30;
+  case REWARD_CYCLE.ANNUALLY:
+    return day * 365;
+  default: throw new Error('Invalid cycle');
+  }
+};
 
 const REWARD_CYCLE = {
   DAILY: new BigNumber(0),
@@ -84,7 +101,7 @@ contract('PersonalDataList', function (accounts) {
     ]);
     await personalDataCategory.setBorrowerAppContractAddress(borrowerApp.address, { from: owner });
     await borrowerScore.transferOwnership(personalDataList.address, { from: owner });
-    await personalDataList.claimContractOwnership(borrowerScore.address, {from: owner});
+    await personalDataList.claimOwnershipContract(borrowerScore.address, { from: owner });
   });
 
   describe('Register', async function () {
@@ -143,7 +160,6 @@ contract('PersonalDataList', function (accounts) {
       });
 
       it('reverts on adding a personal data by unregistered borrower app', async function () {
-
         await personalDataList.add(
           borrowerId,
           somePDC.code,
@@ -223,6 +239,7 @@ contract('PersonalDataList', function (accounts) {
 
   describe('Modification', async function () {
     context('when personal data is registered', async function () {
+      let afterDataAdded;
       beforeEach(async function () {
         await Promise.all([
           personalDataList.setBorrowerAppContractAddress(borrowerApp.address, { from: owner }),
@@ -237,22 +254,26 @@ contract('PersonalDataList', function (accounts) {
           registerSomePDC(),
         ]);
 
-        await personalDataList.add(
-          borrowerId,
-          somePDC.code,
-          borrowerData[somePDC.code],
-          { from: somePDC.borrowerAppId }
-        );
+        const [addedTime] = await Promise.all([
+          latestTime(),
+          personalDataList.add(
+            borrowerId,
+            somePDC.code,
+            borrowerData[somePDC.code],
+            { from: somePDC.borrowerAppId }
+          ),
+        ]);
+        afterDataAdded = addedTime + 1;
       });
 
-      it('updates personal data for borrower id', async function () {
+      it('updates personal data for borrower id after cycle has passed', async function () {
+        await increaseTimeTo(afterDataAdded + cycleInSeconds(somePDC.rewardCycle));
         await personalDataList.update(borrowerId, somePDC.code, web3.sha3('MacBook Pro'), { from: somePDC.borrowerAppId })
-          .should.be.fulfilled;
-        await personalDataList.update(borrowerId, somePDC.code, web3.sha3('iMac'), { from: somePDC.borrowerAppId })
           .should.be.fulfilled;
       });
 
       it('emits an events on updating a personal data', async function () {
+        await increaseTimeTo(afterDataAdded + cycleInSeconds(somePDC.rewardCycle));
         const events = await eventsIn(personalDataList.update(
           borrowerId,
           somePDC.code,
@@ -268,6 +289,17 @@ contract('PersonalDataList', function (accounts) {
             borrowerAppId: somePDC.borrowerAppId,
           },
         });
+      });
+
+      it('it reverts on updating personal data before cycle has passed', async function () {
+        await personalDataList.update(borrowerId, somePDC.code, web3.sha3('MacBook Pro'), { from: somePDC.borrowerAppId })
+          .should.be.rejectedWith(/Personal data can be updated after the cycle of registered data has passed/);
+
+        await increaseTimeTo(afterDataAdded + cycleInSeconds(somePDC.rewardCycle));
+        await personalDataList.update(borrowerId, somePDC.code, web3.sha3('MacBook Pro'), { from: somePDC.borrowerAppId })
+          .should.be.fulfilled;
+        await personalDataList.update(borrowerId, somePDC.code, web3.sha3('iMac'), { from: somePDC.borrowerAppId })
+          .should.be.rejectedWith(/Personal data can be updated after the cycle of registered data has passed/);
       });
 
       it('reverts on updating personal data by invalid borrower app', async function () {
@@ -522,7 +554,7 @@ contract('PersonalDataList', function (accounts) {
         });
       });
 
-      it('emits an events on updating a personal data', async function () {
+      it('emits an events on removing a personal data', async function () {
         const events = await eventsIn(personalDataList.remove(
           borrowerId,
           somePDC.code,

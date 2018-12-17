@@ -38,7 +38,8 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
     function add(address _borrowerId, uint256 _categoryCode, bytes32 _dataHash) public
         whenBorrowerAppContractIsSet
         whenBorrowerContractIsSet
-        whenPersonalDataCategoryContractIsSet 
+        whenPersonalDataCategoryContractIsSet
+        whenBorrowerScoreContractIsSet
     {
         address borrowerAppId = msg.sender;
         require(
@@ -54,17 +55,8 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         bytes32 key = keccak256(abi.encodePacked(_borrowerId, _categoryCode));
         require(!_contains(key), "Personal data for both borrower and category code already exists");
 
+        
         PersonalDataEntry storage entry = entryMap[key];
-        uint256 currentTime = block.timestamp;
-        
-        if (
-            _shouldAddScore(personalDataCategoryContract.getRewardCycleInSecondsByCode(_categoryCode) ,entry.updatedTime, currentTime)
-        ) {
-            uint256 categoryScore;
-            (,,,,,categoryScore,,) = personalDataCategoryContract.get(_categoryCode); // only use sixth element(categoryScore) of returing tuple
-            BorrowerScore(borrowerScoreContractAddress).add(borrowerAppId, _borrowerId, categoryScore);
-        }
-        
         entry.borrowerId = _borrowerId;
         entry.categoryCode = _categoryCode;
         entry.borrowerAppId = borrowerAppId;
@@ -72,8 +64,9 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         entry.keyListIndex = keyList.push(key) - 1;
         entry.borrowerToKeyListIndex = borrowerToKeyListMap[_borrowerId].push(key) - 1;
         entry.categoryCodeToKeyListIndex = categoryCodeToKeyListMap[_categoryCode].push(key) - 1;
-        entry.updatedTime = currentTime;
+        entry.updatedTime = block.timestamp;
 
+        _addScore(borrowerAppId, _borrowerId, _categoryCode);
         emit LogPersonalDataAdded(_borrowerId, _categoryCode, borrowerAppId);
     }
 
@@ -85,8 +78,19 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
             entry.borrowerAppId == borrowerAppId,
             "msg.sender is not matched borrower app on personal data: only borrower app that added personal data can update"
         );
+        uint256 currentTime = block.timestamp;
+        require(
+            _cyclePassed(
+                PersonalDataCategory(personalDataCategoryContractAddress).getRewardCycleInSecondsByCode(_categoryCode),
+                entry.updatedTime,
+                currentTime
+            ),
+            "Personal data can be updated after the cycle of registered data has passed"
+        );
+
         entry.dataHash = _dataHash;
-        entry.updatedTime = block.timestamp;
+        entry.updatedTime = currentTime;
+        _addScore(borrowerAppId, _borrowerId, _categoryCode);
         emit LogPersonalDataUpdated(_borrowerId, _categoryCode, borrowerAppId);
     }
 
@@ -177,7 +181,13 @@ contract PersonalDataList is UsesBorrowerApp, UsesBorrower, UsesPersonalDataCate
         return _contains(key);
     }
     
-    function _shouldAddScore(uint256 _cycleInSeconds, uint256 _updatedTime, uint256 _currentTime) private pure returns (bool) {
+    function _addScore(address _borrowerAppId, address _borrowerId, uint256 _categoryCode) private {
+        uint256 categoryScore;
+        (,,,,,categoryScore,,) = PersonalDataCategory(personalDataCategoryContractAddress).get(_categoryCode); // only use sixth element(categoryScore) of returing tuple
+        BorrowerScore(borrowerScoreContractAddress).add(_borrowerAppId, _borrowerId, categoryScore);
+    }
+
+    function _cyclePassed(uint256 _cycleInSeconds, uint256 _updatedTime, uint256 _currentTime) private pure returns (bool) {
         return _updatedTime + _cycleInSeconds < _currentTime;
     }
 
